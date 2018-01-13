@@ -1,4 +1,6 @@
-# AutomataUI for vvvv
+# AutomataUI Time Based Fork vvvv
+
+This fork is incompatible with the original AutomataUI by u7angel.
 
 Hello Automata UI !
 this is a visual finite state machine editor with built in finite state machine.

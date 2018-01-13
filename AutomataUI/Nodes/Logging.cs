@@ -21,6 +21,7 @@ namespace VVVV.Nodes
     #region PluginInfo
     [PluginInfo(Name = "Logging",
                 Category = "AutomataUI Animation",
+                Version = "TimeBased",
                 Help = "log state changes with time",
                 Tags = "",
                 AutoEvaluate = true)]
@@ -29,7 +30,7 @@ namespace VVVV.Nodes
     {
         #region fields & pins
         [Input("AutomataUI")]
-        public Pin<AutomataUI> AutomataUI;
+        public Pin<AutomataUITimeBased> AutomataUI;
 
         [Input("Filename", StringType = StringType.Filename)]
         public ISpread<string> FFile;

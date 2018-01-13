@@ -11,3 +11,9 @@ C:\Users\Chris\Desktop\AutomataUI\AutomataUI\bin\Debug\AutomataUI.pdb
 C:\Users\Chris\Desktop\AutomataUI\AutomataUI\obj\Debug\AutomataUI.csprojResolveAssemblyReference.cache
 C:\Users\Chris\Desktop\AutomataUI\AutomataUI\obj\Debug\AutomataUI.dll
 C:\Users\Chris\Desktop\AutomataUI\AutomataUI\obj\Debug\AutomataUI.pdb
+D:\local\lib\AutomataUI\AutomataUI\bin\Debug\AutomataUI.TimeBased.dll
+D:\local\lib\AutomataUI\AutomataUI\bin\Debug\AutomataUI.TimeBased.pdb
+D:\local\lib\AutomataUI\AutomataUI\obj\Debug\AutomataUI.csprojResolveAssemblyReference.cache
+D:\local\lib\AutomataUI\AutomataUI\obj\Debug\AutomataUI.csproj.CoreCompileInputs.cache
+D:\local\lib\AutomataUI\AutomataUI\obj\Debug\AutomataUI.TimeBased.dll
+D:\local\lib\AutomataUI\AutomataUI\obj\Debug\AutomataUI.TimeBased.pdb

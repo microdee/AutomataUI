@@ -17,6 +17,7 @@ namespace VVVV.Nodes
     #region PluginInfo
     [PluginInfo(Name = "GetState",
                 Category = "AutomataUI Animation",
+                Version = "TimeBased",
                 Help = "get a state information from AutomataUI",
                 Tags = "",
                 AutoEvaluate = true)]
@@ -27,10 +28,12 @@ namespace VVVV.Nodes
         protected IDiffSpread<EnumEntry> EnumState;
 
         [Input("AutomataUI")]
-        public Pin<AutomataUI> AutomataUI;
+        public Pin<AutomataUITimeBased> AutomataUI;
 
         [Output("ElapsedStateTime")]
-        public ISpread<int> ElapsedStateTime;
+        public ISpread<double> ElapsedStateTime;
+        [Output("ElapsedStateFramed")]
+        public ISpread<int> ElapsedStateFrames;
 
         [Output("FadeInOut")]
         public ISpread<double> FadeInOut;
@@ -95,7 +98,7 @@ namespace VVVV.Nodes
                 }
 
                 StateActive.SliceCount = EnumState.SliceCount * AutomataUI[0].ActiveStateIndex.SliceCount; //set Slicecount to amount of incoming Automatas
-                FadeInOut.SliceCount = ElapsedStateTime.SliceCount = FadeDirection.SliceCount = StateActive.SliceCount;
+                FadeInOut.SliceCount = ElapsedStateTime.SliceCount = ElapsedStateFrames.SliceCount = FadeDirection.SliceCount = StateActive.SliceCount;
 
                 for (int j = 0; j < EnumState.SliceCount; j++)
                 {
@@ -106,32 +109,34 @@ namespace VVVV.Nodes
 
                         // find out if selected state is active
                         if (AutomataUI[0].ActiveStateIndex[i] == EnumState[j].Index && // Selected State is Active and Time is running ?
-                            AutomataUI[0].ElapsedStateTime[i] > 0)
+                            AutomataUI[0].ElapsedStateTime[i] >= 0.0001)
                         {
                             StateActive[offset] = true;
                             ElapsedStateTime[offset] = AutomataUI[0].ElapsedStateTime[i];
+                            ElapsedStateFrames[offset] = AutomataUI[0].ElapsedStateFrames[i];
                             //FadeDirection[offset] = "reached";
                         }
                         else
                         {
                             StateActive[offset] = false;
                             ElapsedStateTime[offset] = 0;
+                            ElapsedStateFrames[offset] = 0;
                             FadeDirection[offset] = "";
                         }
 
                         //output in timing
-                        if (AutomataUI[0].TransitionFramesOut[i] > 0 &&
+                        if (AutomataUI[0].TransitionTimeOut[i] >= 0.0001 &&
                             AutomataUI[0].transitionList.ElementAt(AutomataUI[0].TransitionIndex[i]).endState == AutomataUI[0].stateList.ElementAt(EnumState[j].Index)) // is the selected state the target state of the active transition ?
                         {
-                            FadeInOut[offset] = 1.0 - ((1.0 / AutomataUI[0].transitionList.ElementAt(AutomataUI[0].TransitionIndex[i]).Frames) * AutomataUI[0].TransitionFramesOut[i]);
+                            FadeInOut[offset] = 1.0 - ((1.0 / AutomataUI[0].transitionList.ElementAt(AutomataUI[0].TransitionIndex[i]).Seconds) * AutomataUI[0].TransitionTimeOut[i]);
                             FadeDirection[offset] = "in";
                         }
                         else FadeInOut[offset] = Convert.ToDouble(StateActive[offset]);
 
-                        if (AutomataUI[0].TransitionFramesOut[i] > 0 &&
+                        if (AutomataUI[0].TransitionTimeOut[i] >= 0.0001 &&
                             AutomataUI[0].transitionList.ElementAt(AutomataUI[0].TransitionIndex[i]).startState == AutomataUI[0].stateList.ElementAt(EnumState[j].Index)) // is the selected state the target state of the active transition ?
                         {
-                            FadeInOut[offset] = (1.0 / AutomataUI[0].transitionList.ElementAt(AutomataUI[0].TransitionIndex[i]).Frames) * AutomataUI[0].TransitionFramesOut[i];
+                            FadeInOut[offset] = AutomataUI[0].TransitionTimeOut[i] / AutomataUI[0].transitionList.ElementAt(AutomataUI[0].TransitionIndex[i]).Seconds;
                             FadeDirection[offset] = "out";
                         }
                     }

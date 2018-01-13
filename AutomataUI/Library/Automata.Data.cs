@@ -36,9 +36,15 @@ namespace Automata.Data
 		{
 			get;
 			set;
-		}
-	
-		public Rectangle Bounds
+	    }
+
+	    public double Seconds //how many seconds is the state locked
+	    {
+	        get;
+	        set;
+	    }
+
+        public Rectangle Bounds
 		{
 			get;
 			set;
@@ -128,7 +134,7 @@ namespace Automata.Data
         }
 
 
-        public int Frames //how long does the transition take
+        public double Seconds //how long does the transition take
 		{
 			get;
 			set;

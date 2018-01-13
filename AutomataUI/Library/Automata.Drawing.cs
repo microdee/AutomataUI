@@ -10,6 +10,7 @@ using System.Linq;
 using VVVV.Nodes;
 using Automata.Data;
 using System.Diagnostics;
+using System.Globalization;
 using VVVV.Core.Logging;
 
 namespace Automata.Drawing
@@ -59,18 +60,18 @@ namespace Automata.Drawing
         // Methoden //
         private void PaintTransitions(object sender, PaintEventArgs e)
         {
-            AutomataUI fw = sender as AutomataUI; // connect to encapsulating class GUIAutomataUINode aka main.cs
+            var fw = sender as AutomataUITimeBased; // connect to encapsulating class GUIAutomataUINode aka main.cs
 
-            double winkel = 0.0;
+            var winkel = 0.0;
 
             greenPen.Alignment = PenAlignment.Center;
             
             transitionPaths.Clear();
 
-            int i = 0;
+            var i = 0;
             #region lines
            
-            foreach (Transition transition in fw.transitionList) // draw lines
+            foreach (var transition in fw.transitionList) // draw lines
             {
                 if (transition.IsPingPong)
                 {
@@ -85,7 +86,7 @@ namespace Automata.Drawing
                     AzurePen.DashStyle = DashStyle.Solid;
                 }
 
-                foreach (Transition subtransition in fw.transitionList) // check if there is a return transition to draw double connections correctly
+                foreach (var subtransition in fw.transitionList) // check if there is a return transition to draw double connections correctly
                 {
                     if (subtransition.startState.ID == transition.endState.ID && subtransition.endState.ID == transition.startState.ID)
                     {
@@ -96,7 +97,7 @@ namespace Automata.Drawing
                 }
 
                 // getting start and endpoint for transition lines
-                Lines.EdgePoints myEdgePoints = Lines.GetEdgePoints(State.Center(transition.startState.Bounds), State.Center(transition.endState.Bounds), 40, 40, winkel);
+                var myEdgePoints = Lines.GetEdgePoints(State.Center(transition.startState.Bounds), State.Center(transition.endState.Bounds), 40, 40, winkel);
 
                 #region bezierstuff
                 //empty path object
@@ -106,7 +107,7 @@ namespace Automata.Drawing
                 bezierEdit.path.AddBezier(myEdgePoints.A, AddTwoPoints(myEdgePoints.A, transition.startBezierPoint), AddTwoPoints(myEdgePoints.B, transition.endBezierPoint), myEdgePoints.B);
 
                 if (transition == bezierEdit.highlightTransition) e.Graphics.DrawPath(RedPen, bezierEdit.path); // draw red editable bezier
-                else if (i == fw.TransitionIndex[fw.ShowSlice[0]] && fw.TransitionFramesOut[fw.ShowSlice[0]] > 0) e.Graphics.DrawPath(OrangePen, bezierEdit.path); // active transition
+                else if (i == fw.TransitionIndex[fw.ShowSlice[0]] && fw.TransitionTimeOut[fw.ShowSlice[0]] > 0) e.Graphics.DrawPath(OrangePen, bezierEdit.path); // active transition
                 else e.Graphics.DrawPath(AzurePen, bezierEdit.path); //draw standard bezier
 
                 transitionPaths.Add(bezierEdit.path); // create list of bezier paths for hitdetection
@@ -116,9 +117,9 @@ namespace Automata.Drawing
             #endregion
 
             #region text
-            foreach (Transition transition in fw.transitionList) // draw text
+            foreach (var transition in fw.transitionList) // draw text
             {
-                foreach (Transition subtransition in fw.transitionList) // check if there is a return transition to draw double connections correctly
+                foreach (var subtransition in fw.transitionList) // check if there is a return transition to draw double connections correctly
                 {
                     if (subtransition.startState.ID == transition.endState.ID && subtransition.endState.ID == transition.startState.ID)
                     {
@@ -128,17 +129,17 @@ namespace Automata.Drawing
                     else winkel = 0.0;
                 }
 
-                string text = transition.Name + " [" + Convert.ToString(transition.Frames) + "]"; // create text
-                SizeF stringSize = new SizeF();
+                var text = transition.Name + $" ({transition.Seconds:0.000} s)"; // create text
+                var stringSize = new SizeF();
                 stringSize = e.Graphics.MeasureString(text, myfont, 100);
 
-                Lines.EdgePoints myEdgePoints = Lines.GetEdgePoints(State.Center(transition.startState.Bounds), State.Center(transition.endState.Bounds), 40, 40, winkel);
+                var myEdgePoints = Lines.GetEdgePoints(State.Center(transition.startState.Bounds), State.Center(transition.endState.Bounds), 40, 40, winkel);
 
                 //could be optimized and only done once
-                Point center = CalculateBezierCenter(0.5, myEdgePoints.A,  AddTwoPoints(myEdgePoints.A, transition.startBezierPoint), AddTwoPoints(myEdgePoints.B, transition.endBezierPoint),myEdgePoints.B);
+                var center = CalculateBezierCenter(0.5, myEdgePoints.A,  AddTwoPoints(myEdgePoints.A, transition.startBezierPoint), AddTwoPoints(myEdgePoints.B, transition.endBezierPoint),myEdgePoints.B);
 
 
-                Rectangle Bounds = new Rectangle(
+                var Bounds = new Rectangle(
                 center,
                 new Size(Convert.ToInt32(stringSize.Width + 1),
                 Convert.ToInt32(stringSize.Height + 1)));
@@ -157,9 +158,9 @@ namespace Automata.Drawing
         private void PaintBezierHandles(object sender, PaintEventArgs e, Transition transition)
         {
 
-            AutomataUI fw = sender as AutomataUI; // connect to encapsulating class GUIAutomataUINode aka main.cs
-            double angle = 0.0;
-            foreach (Transition subtransition in fw.transitionList) // check if there is a return transition to draw double connections correctly
+            var fw = sender as AutomataUITimeBased; // connect to encapsulating class GUIAutomataUINode aka main.cs
+            var angle = 0.0;
+            foreach (var subtransition in fw.transitionList) // check if there is a return transition to draw double connections correctly
             {
                 if (subtransition.startState.ID == transition.endState.ID && subtransition.endState.ID == transition.startState.ID)
                 {
@@ -170,7 +171,7 @@ namespace Automata.Drawing
             }
 
 
-            Lines.EdgePoints myEdgePoints = Lines.GetEdgePoints(State.Center(transition.startState.Bounds), State.Center(transition.endState.Bounds), 40, 40, angle); //draw line from state to state
+            var myEdgePoints = Lines.GetEdgePoints(State.Center(transition.startState.Bounds), State.Center(transition.endState.Bounds), 40, 40, angle); //draw line from state to state
          
             bezierEdit.bezierStart = new Rectangle(new Point(myEdgePoints.A.X - 5 + transition.startBezierPoint.X, myEdgePoints.A.Y - 5 + transition.startBezierPoint.Y), new Size(10, 10));
             bezierEdit.bezierEnd = new Rectangle(new Point(myEdgePoints.B.X - 5 + transition.endBezierPoint.X, myEdgePoints.B.Y - 5 + transition.endBezierPoint.Y), new Size(10, 10));
@@ -186,11 +187,11 @@ namespace Automata.Drawing
 
         private void PaintEditTransition(object sender, PaintEventArgs e)
         {
-            AutomataUI fw = sender as AutomataUI; // connect to encapsulating class GUIAutomataUINode aka main.cs
+            var fw = sender as AutomataUITimeBased; // connect to encapsulating class GUIAutomataUINode aka main.cs
 
             if (fw.startConnectionState != null)
             {
-                Lines.EdgePoints myEdgePoints = new Lines.EdgePoints();
+                var myEdgePoints = new Lines.EdgePoints();
 
                 if (fw.targetConnectionState != null) // is transition between state and state
                 {
@@ -206,7 +207,7 @@ namespace Automata.Drawing
 
         private void PaintStateHighlight(object sender, PaintEventArgs e, int index, Pen penColor)
         {
-            AutomataUI fw = sender as AutomataUI; // connect to encapsulating class GUIAutomataUINode aka main.cs
+            var fw = sender as AutomataUITimeBased; // connect to encapsulating class GUIAutomataUINode aka main.cs
             if (fw.stateList.Count > 1)
             {
                 var item = fw.stateList.ElementAt(index);
@@ -220,14 +221,15 @@ namespace Automata.Drawing
 
         private void PaintStates(object sender, PaintEventArgs e)
         {
-            AutomataUI fw = sender as AutomataUI; // connect to encapsulating class GUIAutomataUINode aka main.cs
+            var fw = sender as AutomataUITimeBased; // connect to encapsulating class GUIAutomataUINode aka main.cs
 
             if (fw.stateList.Count != 0)
             {
-                foreach (State state in fw.stateList) // Loop through List with foreach.
+                foreach (var state in fw.stateList) // Loop through List with foreach.
                 {
-                    string stateName = state.Name;
-                    if (state.Frames > 0) stateName += " [" + Convert.ToString(state.Frames) + "]";
+                    var stateName = state.Name;
+                    if (state.Seconds > 0.0001) stateName += $" ({state.Seconds:0.000} s)";
+                    if (state.Frames > 0) stateName += $" ({state.Frames} f)";
 
 
                     if (state.ID == "Init")
@@ -246,10 +248,12 @@ namespace Automata.Drawing
 
         private void PaintSpreadButtons(object sender, PaintEventArgs e)
         {
-            AutomataUI fw = sender as AutomataUI;
-            StringFormat stringFormat = new StringFormat();
-            stringFormat.Alignment = StringAlignment.Center;
-            stringFormat.LineAlignment = StringAlignment.Center;
+            var fw = sender as AutomataUITimeBased;
+            var stringFormat = new StringFormat
+            {
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Center
+            };
             int size = Convert.ToInt16(20 * dpi);
             int posx = Convert.ToInt16(23 * dpi);
             int posy = Convert.ToInt16(30 * dpi);
@@ -257,7 +261,7 @@ namespace Automata.Drawing
             if (fw.ActiveStateIndex.SliceCount > 1)
             {
                 Spreadbuttons.Clear();
-                for (int i = 0; i < fw.ActiveStateIndex.SliceCount; i++)
+                for (var i = 0; i < fw.ActiveStateIndex.SliceCount; i++)
                 {
                     Spreadbuttons.Add(new Rectangle(new Point(i * posx + 10, posy), new Size(size, size)));
                     if (i == fw.ShowSlice[0]) e.Graphics.FillRectangle(OrangeBrush, Spreadbuttons.Last());
@@ -269,7 +273,7 @@ namespace Automata.Drawing
 
         public void JoregMode(object sender, bool JMode)
         {
-            AutomataUI fw = sender as AutomataUI; // connect to encapsulating class GUIAutomataUINode aka main.cs
+            var fw = sender as AutomataUITimeBased; // connect to encapsulating class GUIAutomataUINode aka main.cs
             if (JMode)
             {
                 MyBackgroundColor = Color.FromArgb(230, 230, 230);
@@ -315,7 +319,7 @@ namespace Automata.Drawing
 
         public void PaintAutomata(object sender, PaintEventArgs e)
         {
-            AutomataUI fw = sender as AutomataUI; // connect to encapsulating class GUIAutomataUINode aka main.cs
+            var fw = sender as AutomataUITimeBased; // connect to encapsulating class GUIAutomataUINode aka main.cs
 
             dpi = e.Graphics.DpiX / 96; // get scaling of windows
             int fontsize = Convert.ToInt16(8 / dpi);
@@ -371,12 +375,12 @@ namespace Automata.Drawing
 
         public static Point CalculateBezierCenter(double t, Point p1, Point p2, Point p3, Point p4)
         {
-            Point p = new Point();
-            double tPower3 = t * t * t;
-            double tPower2 = t * t;
-            double oneMinusT = 1 - t;
-            double oneMinusTPower3 = oneMinusT * oneMinusT * oneMinusT;
-            double oneMinusTPower2 = oneMinusT * oneMinusT;
+            var p = new Point();
+            var tPower3 = t * t * t;
+            var tPower2 = t * t;
+            var oneMinusT = 1 - t;
+            var oneMinusTPower3 = oneMinusT * oneMinusT * oneMinusT;
+            var oneMinusTPower2 = oneMinusT * oneMinusT;
             p.X = Convert.ToInt32(oneMinusTPower3 * p1.X + (3 * oneMinusTPower2 * t * p2.X) + (3 * oneMinusT * tPower2 * p3.X) + tPower3 * p4.X);
             p.Y = Convert.ToInt32(oneMinusTPower3 * p1.Y + (3 * oneMinusTPower2 * t * p2.Y) + (3 * oneMinusT * tPower2 * p3.Y) + tPower3 * p4.Y);
             return p;
@@ -384,62 +388,108 @@ namespace Automata.Drawing
 
         public static Point AddTwoPoints(Point p1, Point p2)
         {
-            Point sum = new Point();
-            sum.X = p1.X + p2.X;
-            sum.Y = p1.Y + p2.Y;
+            var sum = new Point
+            {
+                X = p1.X + p2.X,
+                Y = p1.Y + p2.Y
+            };
             return sum;
         }
 
         public class Dialogs
         {
-            public static DialogResult ShowInputDialog(ref string input, ref int frames, string DialogName, float dpi)
+            public static void NumericUpDownKeyPress(object sender, KeyPressEventArgs e)
             {
-                System.Drawing.Size size = new System.Drawing.Size(200, 100);
+                if (e.KeyChar.Equals('.') || e.KeyChar.Equals(','))
+                {
+                    e.KeyChar = ((System.Globalization.CultureInfo)System.Globalization.CultureInfo.CurrentCulture).NumberFormat.NumberDecimalSeparator.ToCharArray()[0];
+                }
+            }
 
-                Form inputBox = new Form();
+            public static DialogResult ShowInputDialog(ref string input, ref int frames, ref double seconds, string DialogName, float dpi)
+            {
+                var size = new System.Drawing.Size(200, 130);
 
-                inputBox.StartPosition = FormStartPosition.CenterScreen;
+                var inputBox = new Form
+                {
+                    StartPosition = FormStartPosition.CenterScreen,
+                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow,
+                    ClientSize = size,
+                    Text = DialogName
+                };
 
-                inputBox.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
-                inputBox.ClientSize = size;
-                inputBox.Text = DialogName;
 
-                System.Windows.Forms.TextBox textBox = new TextBox();
-                textBox.Size = new System.Drawing.Size(size.Width - 10, 23);
-                textBox.Location = new System.Drawing.Point(5, 5);
-                textBox.Text = input;
+
+                var textBox = new TextBox
+                {
+                    Size = new System.Drawing.Size(size.Width - 10, 23),
+                    Location = new System.Drawing.Point(5, 5),
+                    Text = input
+                };
                 inputBox.Controls.Add(textBox);
 
-                System.Windows.Forms.NumericUpDown timeUpDown = new System.Windows.Forms.NumericUpDown();
-                timeUpDown.Name = "Time(f)";
-                timeUpDown.Location = new System.Drawing.Point(5, 39);
-                timeUpDown.Size = new System.Drawing.Size(80, 20);
-                timeUpDown.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-                timeUpDown.Maximum = Decimal.MaxValue;
-                timeUpDown.Value = frames;
-                timeUpDown.TabIndex = 0;
+                var timeUpDown = new System.Windows.Forms.NumericUpDown
+                {
+                    Name = "LockedF",
+                    Location = new System.Drawing.Point(5, 39),
+                    Size = new System.Drawing.Size(80, 20),
+                    TextAlign = System.Windows.Forms.HorizontalAlignment.Right,
+                    Maximum = decimal.MaxValue,
+                    Value = frames,
+                    TabIndex = 0,
+                };
+                timeUpDown.KeyPress += NumericUpDownKeyPress;
                 inputBox.Controls.Add(timeUpDown);
 
-                System.Windows.Forms.Label framesLabel = new System.Windows.Forms.Label();
-                framesLabel.Location = new System.Drawing.Point(88, 42);
-                framesLabel.Size = new System.Drawing.Size(100, 23);
-                framesLabel.Text = "Locked(f)";
+                var framesLabel = new System.Windows.Forms.Label
+                {
+                    Location = new System.Drawing.Point(88, 42),
+                    Size = new System.Drawing.Size(100, 23),
+                    Text = "Locked (frames)"
+                };
                 inputBox.Controls.Add(framesLabel);
 
-                Button okButton = new Button();
-                okButton.DialogResult = System.Windows.Forms.DialogResult.OK;
-                okButton.Name = "okButton";
-                okButton.Size = new System.Drawing.Size(90, 23);
-                okButton.Text = "&OK";
-                okButton.Location = new System.Drawing.Point(5, 70);
+                var lockSecUpDown = new System.Windows.Forms.NumericUpDown
+                {
+                    Name = "LockedS",
+                    Location = new System.Drawing.Point(5, 69),
+                    Size = new System.Drawing.Size(80, 20),
+                    TextAlign = System.Windows.Forms.HorizontalAlignment.Right,
+                    Maximum = decimal.MaxValue,
+                    DecimalPlaces = 3,
+                    Increment = (decimal)0.1,
+                    Value = (decimal)seconds,
+                    TabIndex = 0,
+                };
+                lockSecUpDown.KeyPress += NumericUpDownKeyPress;
+                inputBox.Controls.Add(lockSecUpDown);
+
+                var lockSecLabel = new System.Windows.Forms.Label
+                {
+                    Location = new System.Drawing.Point(88, 72),
+                    Size = new System.Drawing.Size(100, 23),
+                    Text = "Locked (sec)"
+                };
+                inputBox.Controls.Add(lockSecLabel);
+
+                var okButton = new Button
+                {
+                    DialogResult = System.Windows.Forms.DialogResult.OK,
+                    Name = "okButton",
+                    Size = new System.Drawing.Size(90, 23),
+                    Text = "&OK",
+                    Location = new System.Drawing.Point(5, 100)
+                };
                 inputBox.Controls.Add(okButton);
 
-                Button cancelButton = new Button();
-                cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-                cancelButton.Name = "cancelButton";
-                cancelButton.Size = new System.Drawing.Size(90, 23);
-                cancelButton.Text = "&Cancel";
-                cancelButton.Location = new System.Drawing.Point(size.Width - 95, 70);
+                var cancelButton = new Button
+                {
+                    DialogResult = System.Windows.Forms.DialogResult.Cancel,
+                    Name = "cancelButton",
+                    Size = new System.Drawing.Size(90, 23),
+                    Text = "&Cancel",
+                    Location = new System.Drawing.Point(size.Width - 95, 100)
+                };
                 inputBox.Controls.Add(cancelButton);
 
                 inputBox.AcceptButton = okButton;
@@ -448,69 +498,87 @@ namespace Automata.Drawing
                 inputBox.Scale(dpi);
                 //inputBox.Size = new Size(1.0f);
 
-                DialogResult result = inputBox.ShowDialog();
+                var result = inputBox.ShowDialog();
                 if (textBox.Text.Length > 0) input = textBox.Text;
                 else input = "empty";
                 frames = Convert.ToInt16(timeUpDown.Value);
+                seconds = Convert.ToDouble(lockSecUpDown.Value);
                 return result;
             }
 
-            public static DialogResult ShowTransitionDialog(ref string input, ref int frames, ref bool pingpong, string DialogName, float dpi)
+            public static DialogResult ShowTransitionDialog(ref string input, ref double seconds, ref bool pingpong, string DialogName, float dpi)
             {
-                System.Drawing.Size size = new System.Drawing.Size(200, 130);
+                var size = new System.Drawing.Size(200, 130);
 
-                Form inputBox = new Form();
+                var inputBox = new Form
+                {
+                    StartPosition = FormStartPosition.CenterScreen,
 
-                inputBox.StartPosition = FormStartPosition.CenterScreen;
+                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow,
+                    ClientSize = size,
+                    Text = DialogName
+                };
 
-                inputBox.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
-                inputBox.ClientSize = size;
-                inputBox.Text = DialogName;
-
-                System.Windows.Forms.TextBox textBox = new TextBox();
-                textBox.Size = new System.Drawing.Size(size.Width - 10, 23);
-                textBox.Location = new System.Drawing.Point(5, 5);
-                textBox.Text = input;
+                var textBox = new TextBox
+                {
+                    Size = new System.Drawing.Size(size.Width - 10, 23),
+                    Location = new System.Drawing.Point(5, 5),
+                    Text = input
+                };
                 inputBox.Controls.Add(textBox);
 
-                System.Windows.Forms.NumericUpDown timeUpDown = new System.Windows.Forms.NumericUpDown();
-                timeUpDown.Name = "Time(f)";
-                timeUpDown.Location = new System.Drawing.Point(5, 39);
-                timeUpDown.Size = new System.Drawing.Size(80, 20);
-                timeUpDown.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-                timeUpDown.Maximum = Decimal.MaxValue;
-                timeUpDown.TabIndex = 0;
-                timeUpDown.Value = frames;
+                var timeUpDown = new System.Windows.Forms.NumericUpDown
+                {
+                    Name = "TimeS",
+                    Location = new System.Drawing.Point(5, 39),
+                    Size = new System.Drawing.Size(80, 20),
+                    TextAlign = System.Windows.Forms.HorizontalAlignment.Right,
+                    Maximum = decimal.MaxValue,
+                    
+                    DecimalPlaces = 3,
+                    Increment = (decimal)0.1,
+                    TabIndex = 0,
+                    Value = (decimal)seconds
+                };
+                timeUpDown.KeyPress += NumericUpDownKeyPress;
                 inputBox.Controls.Add(timeUpDown);
 
-                System.Windows.Forms.Label framesLabel = new System.Windows.Forms.Label();
-                framesLabel.Location = new System.Drawing.Point(88, 42);
-                framesLabel.Size = new System.Drawing.Size(100, 23);
-                framesLabel.Text = "Duration(f)";
-                inputBox.Controls.Add(framesLabel);
+                var durLabel = new System.Windows.Forms.Label
+                {
+                    Location = new System.Drawing.Point(88, 42),
+                    Size = new System.Drawing.Size(100, 23),
+                    Text = "Duration (sec)"
+                };
+                inputBox.Controls.Add(durLabel);
 
-                System.Windows.Forms.CheckBox isPingPong = new System.Windows.Forms.CheckBox();
-                isPingPong.Location = new System.Drawing.Point(70, 70);
-                isPingPong.Text = "PingPong";
-                isPingPong.Checked = pingpong; // getting the bool from the transition object
+                var isPingPong = new System.Windows.Forms.CheckBox
+                {
+                    Location = new System.Drawing.Point(70, 70),
+                    Text = "PingPong",
+                    Checked = pingpong // getting the bool from the transition object
+                };
                 inputBox.Controls.Add(isPingPong);
 
 
 
-                Button okButton = new Button();
-                okButton.DialogResult = System.Windows.Forms.DialogResult.OK;
-                okButton.Name = "okButton";
-                okButton.Size = new System.Drawing.Size(90, 23);
-                okButton.Text = "&OK";
-                okButton.Location = new System.Drawing.Point(5, 99);
+                var okButton = new Button
+                {
+                    DialogResult = System.Windows.Forms.DialogResult.OK,
+                    Name = "okButton",
+                    Size = new System.Drawing.Size(90, 23),
+                    Text = "&OK",
+                    Location = new System.Drawing.Point(5, 99)
+                };
                 inputBox.Controls.Add(okButton);
 
-                Button cancelButton = new Button();
-                cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-                cancelButton.Name = "cancelButton";
-                cancelButton.Size = new System.Drawing.Size(90, 23);
-                cancelButton.Text = "&Cancel";
-                cancelButton.Location = new System.Drawing.Point(size.Width - 95, 99);
+                var cancelButton = new Button
+                {
+                    DialogResult = System.Windows.Forms.DialogResult.Cancel,
+                    Name = "cancelButton",
+                    Size = new System.Drawing.Size(90, 23),
+                    Text = "&Cancel",
+                    Location = new System.Drawing.Point(size.Width - 95, 99)
+                };
                 inputBox.Controls.Add(cancelButton);
 
                 inputBox.AcceptButton = okButton;
@@ -518,10 +586,10 @@ namespace Automata.Drawing
 
                 inputBox.Scale(dpi);
 
-                DialogResult result = inputBox.ShowDialog();
+                var result = inputBox.ShowDialog();
                 if (textBox.Text.Length > 0) input = textBox.Text;
                 else input = "empty";
-                frames = Convert.ToInt16(timeUpDown.Value);
+                seconds = Convert.ToDouble(timeUpDown.Value);
                 pingpong = isPingPong.Checked;
                 return result;
             }
@@ -604,14 +672,14 @@ namespace Automata.Drawing
         public static EdgePoints GetEdgePoints(Point A, Point B, int Radius, int Radius2, double winkel)
         {
 
-            Vector3D PointA = new Vector3D(A.X, A.Y, 0);
-            Vector3D PointB = new Vector3D(B.X, B.Y, 0);
+            var PointA = new Vector3D(A.X, A.Y, 0);
+            var PointB = new Vector3D(B.X, B.Y, 0);
 
             Vector3D TempA;
             Vector3D TempB;
             Vector3D TempC;
 
-            Vector3D tempVector = new Vector3D(VMath.PolarVVVV(PointA - PointB)); //get Polar Values
+            var tempVector = new Vector3D(VMath.PolarVVVV(PointA - PointB)); //get Polar Values
 
             if (tempVector.y > 0) // depending which quadrant of rotation
             {
@@ -626,11 +694,12 @@ namespace Automata.Drawing
 
             TempC = VMath.CartesianVVVV(VMath.PolarVVVV(TempA - TempB).x, VMath.PolarVVVV(TempA - TempB).y, 0 - VMath.PolarVVVV(TempA - TempB).z / 2.75) + TempA; // calculate center
 
-            EdgePoints myEdgeCoords = new EdgePoints(); // edgepoint definition
-
-            myEdgeCoords.A = new Point(Convert.ToInt16(TempA.x), Convert.ToInt16(TempA.y)); // create Point from Vector
-            myEdgeCoords.B = new Point(Convert.ToInt16(TempB.x), Convert.ToInt16(TempB.y)); // create Point from Vector
-            myEdgeCoords.Center = new Point(Convert.ToInt16(TempC.x), Convert.ToInt16(TempC.y));
+            var myEdgeCoords = new EdgePoints
+            {
+                A = new Point(Convert.ToInt16(TempA.x), Convert.ToInt16(TempA.y)), // create Point from Vector
+                B = new Point(Convert.ToInt16(TempB.x), Convert.ToInt16(TempB.y)), // create Point from Vector
+                Center = new Point(Convert.ToInt16(TempC.x), Convert.ToInt16(TempC.y))
+            }; // edgepoint definition
 
             return myEdgeCoords;
         }
@@ -661,7 +730,7 @@ namespace Automata.Drawing
 
         public PanZoomValues MovePan()
         {
-            PanZoomValues tempPanZoom = new PanZoomValues();
+            var tempPanZoom = new PanZoomValues();
             return tempPanZoom;
         }
     }

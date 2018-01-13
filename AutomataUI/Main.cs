@@ -22,12 +22,12 @@ namespace VVVV.Nodes
 {
     public delegate void Changed(); //delegate type
     #region PluginInfo
-    [PluginInfo(Name = "AutomataUI", Category = "Animation", Help = "Statemachine", Tags = "", AutoEvaluate = true)]
+    [PluginInfo(Name = "AutomataUI", Category = "Animation", Version = "TimeBased", Help = "Statemachine", Tags = "", AutoEvaluate = true)]
     #endregion PluginInfo
 
     
 
-    public class AutomataUI : UserControl, IPluginEvaluate, IPartImportsSatisfiedNotification
+    public class AutomataUITimeBased : UserControl, IPluginEvaluate, IPartImportsSatisfiedNotification
     {
         #region fields & pins
 
@@ -71,34 +71,39 @@ namespace VVVV.Nodes
         public ISpread<String> TransitionsOut;
 
         [Output("Transition Time Settings")]
-        public ISpread<int> TransitionTimeSettingOut;
+        public ISpread<double> TransitionTimeSettingOut;
 
         [Output("Transition Index")]
         public ISpread<int> TransitionIndex;
 
         [Output("Transition Time")]
-        public ISpread<int> TransitionFramesOut;
+        public ISpread<double> TransitionTimeOut;
 
         [Output("Elapsed State Time")]
-        public ISpread<int> ElapsedStateTime;
+        public ISpread<double> ElapsedStateTime;
+        [Output("Elapsed State Frames")]
+        public ISpread<int> ElapsedStateFrames;
 
         [Output("AutomataUI")]
-        public ISpread<AutomataUI> AutomataUIOut;
+        public ISpread<AutomataUITimeBased> AutomataUIOut;
 
         [Import()]
         public ILogger FLogger;
         [Import()]
         public IIOFactory FIOFactory;
         [Import()]
-        IPluginHost FHost;
+        IPluginHost2 FHost;
+        [Import()]
+        IHDEHost FHdeHost;
 
         #endregion fields & pins
 
         #region variables
-        
+
         public int x = 0; //mouse koordinaten
         public int y = 0;
         public Point previousPosition;
+        public double PrevFrameTime = 0;
 
         State hitState = new State(); //hit detection
         Transition hitTransition = new Transition(); //hit detection
@@ -200,7 +205,7 @@ namespace VVVV.Nodes
 
         }
 
-        public AutomataUI()
+        public AutomataUITimeBased()
         {
             //setup the gui
             InitializeComponent();
@@ -305,7 +310,7 @@ namespace VVVV.Nodes
             if (e.Button == MouseButtons.Left && Form.ModifierKeys == Keys.Control && hitState != null)
             {
                 ActiveStateIndex[ShowSlice[0]] = TargetStateIndex[ShowSlice[0]] = stateList.IndexOf(hitState);
-                ElapsedStateTime[ShowSlice[0]] = TransitionFramesOut[ShowSlice[0]] = 0;
+                ElapsedStateTime[ShowSlice[0]] = TransitionTimeOut[ShowSlice[0]] = ElapsedStateFrames[ShowSlice[0]] = 0;
                 this.Invalidate(); //redraw
             }
             
@@ -316,10 +321,12 @@ namespace VVVV.Nodes
                 ActiveStateIndex[ShowSlice[0]] = stateList.IndexOf(hitTransition.startState);
 
 
-                TransitionFramesOut[ShowSlice[0]] = hitTransition.Frames; // get frames of transition
+                TransitionTimeOut[ShowSlice[0]] = hitTransition.Seconds; // get frames of transition
                 TransitionIndex[ShowSlice[0]] = transitionList.IndexOf(hitTransition); //get transition
                 ElapsedStateTime[ShowSlice[0]] = 0; // stop ElapsedStateTimer
-                
+                ElapsedStateFrames[ShowSlice[0]] = 0;
+
+
                 FLogger.Log(LogType.Debug, "force transition");
                 this.Invalidate(); //redraw
             }
@@ -386,7 +393,7 @@ namespace VVVV.Nodes
         {
             x = Convert.ToInt32((e.X - p.StagePos.X) / p.dpi);
             y = Convert.ToInt32((e.Y - p.StagePos.Y) / p.dpi);
-            TransitionFramesOut[0] = 0;
+            TransitionTimeOut[0] = 0;
 
             if (hitState == null && hitTransition == null && e.Button == MouseButtons.Left) AddState("MyState"); // Add State 
 
@@ -465,19 +472,19 @@ namespace VVVV.Nodes
             }
 
             // transition does not exist ? ok, create it
-            if (exists == false)
+            if (!exists)
             {
                 string input = "My Transition"; //dialog text
-                int frames = 1;
+                double seconds = 0;
                 bool pingpong = false;
                 {
-                    if (PaintAutomataClass.Dialogs.ShowTransitionDialog(ref input, ref frames, ref pingpong, "Add Transition",p.dpi) == DialogResult.OK)
+                    if (PaintAutomataClass.Dialogs.ShowTransitionDialog(ref input, ref seconds, ref pingpong, "Add Transition",p.dpi) == DialogResult.OK)
                     {
                         //add transition
                         transitionList.Add(new Transition()
                         {
                             Name = input,
-                            Frames = frames,
+                            Seconds = seconds,
                             startState = startState,
                             endState = endState,
                             IsPingPong = pingpong,
@@ -497,14 +504,13 @@ namespace VVVV.Nodes
         private void EditTransition(Transition transition)
         {
             string input = transition.Name;
-            int frames = transition.Frames;
+            double seconds = transition.Seconds;
             bool pingpong = transition.IsPingPong;
 
-            if (PaintAutomataClass.Dialogs.ShowTransitionDialog(ref input, ref frames, ref pingpong, "Edit Transition",p.dpi) == DialogResult.OK)
+            if (PaintAutomataClass.Dialogs.ShowTransitionDialog(ref input, ref seconds, ref pingpong, "Edit Transition",p.dpi) == DialogResult.OK)
             {
-
                 transition.Name = input;
-                transition.Frames = frames;
+                transition.Seconds = seconds;
                 transition.IsPingPong = pingpong;
                 this.Invalidate();
 
@@ -526,7 +532,8 @@ namespace VVVV.Nodes
         private void AddState(string input)
         {
             int frames = 0;
-            if (PaintAutomataClass.Dialogs.ShowInputDialog(ref input, ref frames, "Add State",p.dpi) == DialogResult.OK)
+            double seconds = 0;
+            if (PaintAutomataClass.Dialogs.ShowInputDialog(ref input, ref frames, ref seconds, "Add State",p.dpi) == DialogResult.OK)
             {
                 //add state to state list
                 stateList.Add(new State()
@@ -534,6 +541,7 @@ namespace VVVV.Nodes
                     ID = Automata.Data.State.RNGCharacterMask(),
                     Name = input,
                     Frames = frames,
+                    Seconds = seconds,
                     Bounds = new Rectangle(new Point(x - (p.StateSize / 2), y - (p.StateSize / 2)), new Size(p.StateSize, p.StateSize))
                 });
 
@@ -547,12 +555,14 @@ namespace VVVV.Nodes
 
             string input = state.Name;
             int frames = state.Frames;
+            double seconds = state.Seconds;
             if (input != "Init") //edit state unless its init
             {
-                if (PaintAutomataClass.Dialogs.ShowInputDialog(ref input, ref frames, "Edit State",p.dpi) == DialogResult.OK)
+                if (PaintAutomataClass.Dialogs.ShowInputDialog(ref input, ref frames, ref seconds, "Edit State",p.dpi) == DialogResult.OK)
                 {
                     state.Name = input;
                     state.Frames = frames;
+                    state.Seconds = seconds;
                     UpdateStateConfigs(); // update JSON,Enums and Redraw
                     UpdateOutputs();
                 }
@@ -594,7 +604,7 @@ namespace VVVV.Nodes
             foreach (Transition transition in transitionList) // Loop through List with foreach.
             {
                 TransitionNames.Add(transition.Name);
-                TransitionTimeSettingOut.Add(transition.Frames);
+                TransitionTimeSettingOut.Add(transition.Seconds);
             }
 
         }
@@ -622,7 +632,7 @@ namespace VVVV.Nodes
             foreach (Transition transition in transitionList) // Loop through List with foreach.
             {
                 TransitionsOut.Add(transition.Name);
-                TransitionTimeSettingOut.Add(transition.Frames);
+                TransitionTimeSettingOut.Add(transition.Seconds);
             }
             TransitionsOut.Add("∅");
         }
@@ -647,8 +657,9 @@ namespace VVVV.Nodes
             ActiveStateIndex.SliceCount 
                 = TargetStateIndex.SliceCount 
                 = TransitionIndex.SliceCount 
-                = TransitionFramesOut.SliceCount 
-                = ElapsedStateTime.SliceCount 
+                = TransitionTimeOut.SliceCount 
+                = ElapsedStateTime.SliceCount
+                = ElapsedStateFrames.SliceCount
                 = FOutput.SliceCount = SpreadMax; //make spreadable , set Spreadmax
 
             #region TriggerTransitions
@@ -671,7 +682,8 @@ namespace VVVV.Nodes
                             ActiveStateIndex[ii] = DefaultState[ii].Index; // index ist 1 statt 0 beta34.2 bug
                             TargetStateIndex[ii] = DefaultState[ii].Index;
                             ElapsedStateTime[ii] = 0; // Reset Timer
-                            TransitionFramesOut[ii] = 0; // Reset Timer
+                            ElapsedStateFrames[ii] = 0; // Reset Timer
+                            TransitionTimeOut[ii] = 0; // Reset Timer
                             this.Invalidate();
                         }
                         else 
@@ -680,32 +692,35 @@ namespace VVVV.Nodes
                             int i = 0;
                             foreach (Transition transition in transitionList)
                             {
+                                var canTransit = new Func<Transition, int, string, State, bool>((trans, index, key, state) =>
+                                {
+                                    return trans.Name == key &&
+                                           TransitionTimeOut[index] <= 0.0001 &&
+                                           state.ID == stateList.ElementAt(ActiveStateIndex[index]).ID &&
+                                           ElapsedStateTime[index] >= state.Seconds &&
+                                           ElapsedStateFrames[index] >= state.Frames;
+                                });
                                 // standard transitions
-                                if (transition.Name == pin.Key &&
-                                    transition.startState.ID == stateList.ElementAt(ActiveStateIndex[ii]).ID &&
-                                    TransitionFramesOut[ii] == 0 &&
-                                    ElapsedStateTime[ii] >= transition.startState.Frames)
+                                if (canTransit(transition, ii, pin.Key, transition.startState))
                                 {
                                     TargetStateIndex[ii] = stateList.IndexOf(transition.endState); // set target state index
-                                    TransitionFramesOut[ii] = transition.Frames; // get frames of transition
+                                    TransitionTimeOut[ii] = transition.Seconds; // get frames of transition
                                     TransitionIndex[ii] = i; //get transition
                                     ElapsedStateTime[ii] = 0; // stop ElapsedStateTimer
+                                    ElapsedStateFrames[ii] = 0; // stop ElapsedStateTimer
                                     this.Invalidate(); //redraw
                                     //FLogger.Log(LogType.Debug, "redraw");
                                     break;
                                 }
 
                                 //pingpong transitions - return to startstate , previous test covers transition to targetstate
-                                if (transition.Name == pin.Key &&
-                                    transition.endState.ID == stateList.ElementAt(ActiveStateIndex[ii]).ID &&
-                                    TransitionFramesOut[ii] == 0 &&
-                                    transition.IsPingPong &&
-                                    ElapsedStateTime[ii] >= transition.endState.Frames)
+                                if (canTransit(transition, ii, pin.Key, transition.endState))
                                 {
                                     TargetStateIndex[ii] = stateList.IndexOf(transition.startState); // set target state index
-                                    TransitionFramesOut[ii] = transition.Frames; // get frames of transition, hier war +1
+                                    TransitionTimeOut[ii] = transition.Seconds; // get frames of transition, hier war +1
                                     TransitionIndex[ii] = i; //get transition
                                     ElapsedStateTime[ii] = 0; // stop ElapsedStateTimer
+                                    ElapsedStateFrames[ii] = 0; // stop ElapsedStateTimer
                                     this.Invalidate(); //redraw
                                     
                                     break;
@@ -713,27 +728,27 @@ namespace VVVV.Nodes
                                 i++;
                             }
                         }
-                            
-                        }
+                    }
                 }
             }
             #endregion TriggerTransitions
 
             #region TimingAndIndices
 
+            var deltatime = PrevFrameTime > 0.0001 ? FHdeHost.FrameTime - PrevFrameTime : 0;
             for (int ii = 0; ii < SpreadMax; ii++) //spreadable loop 02
             {
                 // set active Transition,State and Timers 
 
-                if (ActiveStateIndex[ii] != TargetStateIndex[ii] && TransitionFramesOut[ii] != 0) // solange target und active ungleich sind, läuft die transitions
+                if (ActiveStateIndex[ii] != TargetStateIndex[ii] && TransitionTimeOut[ii] >= 0.0001) // solange target und active ungleich sind, läuft die transitions
                 {
-                    TransitionFramesOut[ii] -= 1; // run Transition Timer 
+                    TransitionTimeOut[ii] -= deltatime; // run Transition Timer 
                     FOutput[ii] = TransitionsOut[TransitionIndex[ii]]; //set summarized output to transition
                 }
                 else FOutput[ii] = StatesOut[ActiveStateIndex[ii]]; // set summarized output to state
 
                 //passiert nur einmal
-                if (TransitionFramesOut[ii] == 0 && ElapsedStateTime[ii] == 0) //solange transition time und elapsedtime 0 sind, setze target und active gleich
+                if (TransitionTimeOut[ii] <= 0.0001 && ElapsedStateTime[ii] <= 0.0001) //solange transition time und elapsedtime 0 sind, setze target und active gleich
                 {
                     ActiveStateIndex[ii] = TargetStateIndex[ii]; // after transition set activestate to targetstate
                     TransitionIndex[ii] = TransitionsOut.SliceCount - 1;
@@ -741,7 +756,11 @@ namespace VVVV.Nodes
                     //FLogger.Log(LogType.Debug, "Transition Ends");
                 }
 
-                if (TransitionFramesOut[ii] == 0) ElapsedStateTime[ii] += 1; // Run State Timer when TransitionTimer is 0
+                if (TransitionTimeOut[ii] <= 0.0001)
+                {
+                    ElapsedStateTime[ii] += deltatime; // Run State Timer when TransitionTimer is 0
+                    ElapsedStateFrames[ii] += 1; // Run State Timer when TransitionTimer is 0
+                }
             }
             
             if (JoregMode.IsChanged && JoregMode[0]) p.JoregMode(this, true);   //Joreg Mode
@@ -758,8 +777,8 @@ namespace VVVV.Nodes
 
             if (FocusWindow[0] && FocusWindow.IsChanged) this.Focus(); //bring window to front
 
-            
 
+            PrevFrameTime = FHdeHost.FrameTime;
         }
     }
 }

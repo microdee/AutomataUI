@@ -20,7 +20,8 @@ namespace VVVV.Nodes
 {
     #region PluginInfo
     [PluginInfo(Name = "SetTransition",
-                Category = "AutomataUI Animation",
+                Category = "AutomataUI.Animation",
+                Version = "TimeBased",
                 Help = "setup transitions programatically ",
                 Tags = "",
                 AutoEvaluate = true)]
@@ -32,10 +33,10 @@ namespace VVVV.Nodes
         protected IDiffSpread<EnumEntry> EnumTransition;
 
         [Input("AutomataUI")]
-        public Pin<AutomataUI> AutomataUI;
+        public Pin<AutomataUITimeBased> AutomataUI;
 
         [Input("Time")]
-        public ISpread<int> TransitionTime;
+        public ISpread<double> TransitionTime;
 
         [Input("Set", IsBang =true)]
         public ISpread<bool> SetTime;

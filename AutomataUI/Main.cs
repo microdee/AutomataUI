@@ -649,6 +649,66 @@ namespace VVVV.Nodes
             }
         }
 
+        public void TriggerTransition(string transName, int ii)
+        {
+            //FLogger.Log(LogType.Debug,pin.ToString());
+            UpdateOutputs(); // output all States and Transitions
+
+            if (transName == "Reset To Default State") // Reset to Init State
+            {
+
+                // Get Enum Index From Default State and Set Active State
+                ActiveStateIndex[ii] = DefaultState[ii].Index; // index ist 1 statt 0 beta34.2 bug
+                TargetStateIndex[ii] = DefaultState[ii].Index;
+                ElapsedStateTime[ii] = 0; // Reset Timer
+                ElapsedStateFrames[ii] = 0; // Reset Timer
+                TransitionTimeOut[ii] = 0; // Reset Timer
+                this.Invalidate();
+            }
+            else
+            {
+                //Find Transition
+                int i = 0;
+                foreach (Transition transition in transitionList)
+                {
+                    var canTransit = new Func<Transition, int, string, State, bool>((trans, index, key, state) =>
+                    {
+                        return trans.Name == key &&
+                               TransitionTimeOut[index] <= 0.0001 &&
+                               state.ID == stateList.ElementAt(ActiveStateIndex[index]).ID &&
+                               ElapsedStateTime[index] >= state.Seconds &&
+                               ElapsedStateFrames[index] >= state.Frames;
+                    });
+                    // standard transitions
+                    if (canTransit(transition, ii, transName, transition.startState))
+                    {
+                        TargetStateIndex[ii] = stateList.IndexOf(transition.endState); // set target state index
+                        TransitionTimeOut[ii] = transition.Seconds; // get frames of transition
+                        TransitionIndex[ii] = i; //get transition
+                        ElapsedStateTime[ii] = 0; // stop ElapsedStateTimer
+                        ElapsedStateFrames[ii] = 0; // stop ElapsedStateTimer
+                        this.Invalidate(); //redraw
+                        //FLogger.Log(LogType.Debug, "redraw");
+                        break;
+                    }
+
+                    //pingpong transitions - return to startstate , previous test covers transition to targetstate
+                    if (canTransit(transition, ii, transName, transition.endState) && transition.IsPingPong)
+                    {
+                        TargetStateIndex[ii] = stateList.IndexOf(transition.startState); // set target state index
+                        TransitionTimeOut[ii] = transition.Seconds; // get frames of transition, hier war +1
+                        TransitionIndex[ii] = i; //get transition
+                        ElapsedStateTime[ii] = 0; // stop ElapsedStateTimer
+                        ElapsedStateFrames[ii] = 0; // stop ElapsedStateTimer
+                        this.Invalidate(); //redraw
+
+                        break;
+                    }
+                    i++;
+                }
+            }
+        }
+
         public void Evaluate(int SpreadMax)
         {
             
@@ -661,94 +721,41 @@ namespace VVVV.Nodes
                 = ElapsedStateTime.SliceCount
                 = ElapsedStateFrames.SliceCount
                 = FOutput.SliceCount = SpreadMax; //make spreadable , set Spreadmax
-
-            #region TriggerTransitions
+            
             for (int ii = 0; ii < SpreadMax; ii++) //spreadable loop 01
             {
-                foreach (var pin in FPins)
-             
+                foreach (var pin in FPins.Keys)
                 {
-                    var diffpin = pin.Value.RawIOObject as IDiffSpread<bool>;
-                    if (diffpin[ii] == true && diffpin.SliceCount != 0) //diffpin.IsChanged && JONAS WUNSCHKONZERT
-                    {
-                        
-                        //FLogger.Log(LogType.Debug,pin.ToString());
-                        UpdateOutputs(); // output all States and Transitions
-
-                        if (pin.Key == "Reset To Default State") // Reset to Init State
-                        {
-
-                            // Get Enum Index From Default State and Set Active State
-                            ActiveStateIndex[ii] = DefaultState[ii].Index; // index ist 1 statt 0 beta34.2 bug
-                            TargetStateIndex[ii] = DefaultState[ii].Index;
-                            ElapsedStateTime[ii] = 0; // Reset Timer
-                            ElapsedStateFrames[ii] = 0; // Reset Timer
-                            TransitionTimeOut[ii] = 0; // Reset Timer
-                            this.Invalidate();
-                        }
-                        else 
-                        {
-                            //Find Transition
-                            int i = 0;
-                            foreach (Transition transition in transitionList)
-                            {
-                                var canTransit = new Func<Transition, int, string, State, bool>((trans, index, key, state) =>
-                                {
-                                    return trans.Name == key &&
-                                           TransitionTimeOut[index] <= 0.0001 &&
-                                           state.ID == stateList.ElementAt(ActiveStateIndex[index]).ID &&
-                                           ElapsedStateTime[index] >= state.Seconds &&
-                                           ElapsedStateFrames[index] >= state.Frames;
-                                });
-                                // standard transitions
-                                if (canTransit(transition, ii, pin.Key, transition.startState))
-                                {
-                                    TargetStateIndex[ii] = stateList.IndexOf(transition.endState); // set target state index
-                                    TransitionTimeOut[ii] = transition.Seconds; // get frames of transition
-                                    TransitionIndex[ii] = i; //get transition
-                                    ElapsedStateTime[ii] = 0; // stop ElapsedStateTimer
-                                    ElapsedStateFrames[ii] = 0; // stop ElapsedStateTimer
-                                    this.Invalidate(); //redraw
-                                    //FLogger.Log(LogType.Debug, "redraw");
-                                    break;
-                                }
-
-                                //pingpong transitions - return to startstate , previous test covers transition to targetstate
-                                if (canTransit(transition, ii, pin.Key, transition.endState))
-                                {
-                                    TargetStateIndex[ii] = stateList.IndexOf(transition.startState); // set target state index
-                                    TransitionTimeOut[ii] = transition.Seconds; // get frames of transition, hier war +1
-                                    TransitionIndex[ii] = i; //get transition
-                                    ElapsedStateTime[ii] = 0; // stop ElapsedStateTimer
-                                    ElapsedStateFrames[ii] = 0; // stop ElapsedStateTimer
-                                    this.Invalidate(); //redraw
-                                    
-                                    break;
-                                }
-                                i++;
-                            }
-                        }
-                    }
+                    var diffpin = (IDiffSpread<bool>)FPins[pin].RawIOObject;
+                    if (diffpin[ii] && diffpin.SliceCount != 0)
+                        TriggerTransition(pin, ii);
                 }
             }
-            #endregion TriggerTransitions
 
             #region TimingAndIndices
 
             var deltatime = PrevFrameTime > 0.0001 ? FHdeHost.FrameTime - PrevFrameTime : 0;
+
             for (int ii = 0; ii < SpreadMax; ii++) //spreadable loop 02
             {
                 // set active Transition,State and Timers 
 
-                if (ActiveStateIndex[ii] != TargetStateIndex[ii] && TransitionTimeOut[ii] >= 0.0001) // solange target und active ungleich sind, läuft die transitions
+                var srcState = stateList[ActiveStateIndex[ii]];
+                var dstState = stateList[TargetStateIndex[ii]];
+
+                if (ActiveStateIndex[ii] != TargetStateIndex[ii] && TransitionTimeOut[ii] >= 0.0001) // as long as target and active are unequal, the transitions will run
                 {
                     TransitionTimeOut[ii] -= deltatime; // run Transition Timer 
                     FOutput[ii] = TransitionsOut[TransitionIndex[ii]]; //set summarized output to transition
+                    srcState.FadingState = FadingState.FadeOut;
+                    dstState.FadingState = FadingState.FadeIn;
+                    srcState.Fade(deltatime, transitionList[TransitionIndex[ii]]);
+                    dstState.Fade(deltatime, transitionList[TransitionIndex[ii]]);
                 }
                 else FOutput[ii] = StatesOut[ActiveStateIndex[ii]]; // set summarized output to state
 
                 //passiert nur einmal
-                if (TransitionTimeOut[ii] <= 0.0001 && ElapsedStateTime[ii] <= 0.0001) //solange transition time und elapsedtime 0 sind, setze target und active gleich
+                if (TransitionTimeOut[ii] <= 0.0001 && ElapsedStateTime[ii] <= 0.0001) // as long as transition time and elapsedtime are 0, set target and active equal
                 {
                     ActiveStateIndex[ii] = TargetStateIndex[ii]; // after transition set activestate to targetstate
                     TransitionIndex[ii] = TransitionsOut.SliceCount - 1;
@@ -760,6 +767,8 @@ namespace VVVV.Nodes
                 {
                     ElapsedStateTime[ii] += deltatime; // Run State Timer when TransitionTimer is 0
                     ElapsedStateFrames[ii] += 1; // Run State Timer when TransitionTimer is 0
+                    srcState.ElapsedTime = ElapsedStateTime[ii];
+                    srcState.ElapsedFrames = ElapsedStateFrames[ii];
                 }
             }
             

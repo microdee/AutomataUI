@@ -19,10 +19,10 @@ using VVVV.Core.Logging;
 namespace VVVV.Nodes
 {
     #region PluginInfo
-    [PluginInfo(Name = "SetTransition",
+    [PluginInfo(Name = "TriggerTransition",
                 Category = "AutomataUI.Animation",
                 Version = "TimeBased",
-                Help = "setup transitions programatically ",
+                Help = "trigger transitions",
                 Tags = "",
                 AutoEvaluate = true)]
     #endregion PluginInfo
@@ -35,11 +35,8 @@ namespace VVVV.Nodes
         [Input("AutomataUI")]
         public Pin<AutomataUITimeBased> AutomataUI;
 
-        [Input("Time")]
-        public ISpread<double> TransitionTime;
-
-        [Input("Set", IsBang =true)]
-        public ISpread<bool> SetTime;
+        [Input("Trigger", IsBang = true)]
+        public ISpread<bool> FTrigger;
 
         [Import()]
         public ILogger FLogger;
@@ -87,20 +84,17 @@ namespace VVVV.Nodes
         //called when data for any output pin is requested
         public void Evaluate(int SpreadMax)
         {
-
+            if(AutomataUI[0] == null) return;
             if (invalidate || AutomataUI[0].StatesChanged)
             {
                 EnumManager.UpdateEnum(EnumName, AutomataUI[0].transitionList[0].Name, AutomataUI[0].transitionList.Select(x => x.Name).ToArray());
                 invalidate = false;
             }
 
-
-            try
+            for (int i = 0; i < FTrigger.SliceCount; i++)
             {
-               
+                if(FTrigger[i]) AutomataUI[0].TriggerTransition(EnumTransition[0].Name, i);
             }
-            catch { FLogger.Log(LogType.Debug, "No Connection"); }
-
         }
     }
 }

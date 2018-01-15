@@ -12,6 +12,13 @@ using System.IO;
 
 namespace Automata.Data
 {
+    public enum FadingState
+    {
+        Inactive,
+        Active,
+        FadeIn,
+        FadeOut
+    }
 	public class State
 	{
 		public string ID
@@ -49,6 +56,44 @@ namespace Automata.Data
 			get;
 			set;
         }//size of state
+
+        [XmlIgnore]
+        public double FadeProgress { get; set; }
+
+	    [XmlIgnore]
+	    public FadingState FadingState { get; set; }
+
+	    [XmlIgnore]
+	    public double ElapsedTime { get; set; }
+
+	    [XmlIgnore]
+	    public int ElapsedFrames { get; set; }
+
+        public void Fade(double deltatime, Transition trans)
+	    {
+	        if (trans.Seconds <= deltatime)
+	        {
+	            FadeProgress = Active ? 0 : 1;
+	            FadingState = Active ? FadingState.Inactive : FadingState.Active;
+	        }
+	        if (FadingState == FadingState.FadeIn)
+	        {
+	            FadeProgress += deltatime / trans.Seconds;
+	        }
+	        if (FadingState == FadingState.FadeOut)
+	        {
+	            FadeProgress -= deltatime / trans.Seconds;
+	        }
+            FadeProgress = VMath.Clamp(FadeProgress, 0, 1);
+	        if (FadeProgress <= 0) FadingState = FadingState.Inactive;
+	        if (FadeProgress >= 1) FadingState = FadingState.Active;
+
+	        if (FadingState == FadingState.Inactive)
+	        {
+	            ElapsedFrames = 0;
+	            ElapsedTime = 0;
+	        }
+	    }
 
         public void Move(Point currentMousePoint)
 		{
